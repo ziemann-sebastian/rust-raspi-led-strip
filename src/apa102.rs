@@ -1,8 +1,9 @@
+use super::ledstrip::LEDStrip;
+use core::fmt::Debug;
+use rppal::gpio::{Gpio, Level, OutputPin};
 use std::fmt;
 use std::thread;
 use std::time::Duration;
-use core::fmt::Debug;
-use rppal::gpio::{Gpio, OutputPin, Level};
 
 /// GPIO BCM pin number for DAT.
 pub const GPIO_DAT: u8 = 10;
@@ -20,12 +21,11 @@ pub const NUM_PIXELS: usize = 64;
 pub const BRIGHTNESS: u8 = 7;
 
 /// Sleep time between pin commands.
-pub const SLEEP_TIME : u64 = 0;
+pub const SLEEP_TIME: u64 = 0;
 
 /// Rainbow HAT APA102 Driver.
 #[derive(Debug)]
 pub struct APA102 {
-
     /// Output pin to write to GPIO. Optional as not used in simulated mode.
     pin_dat: Option<Box<OutputPin>>,
 
@@ -36,28 +36,26 @@ pub struct APA102 {
     pin_cs: Option<Box<OutputPin>>,
 
     /// pixels to be printed
-    pub pixels: [[u8;4] ; NUM_PIXELS],
+    pub pixels: [[u8; 4]; NUM_PIXELS],
 
     /// brightness between 0 and 15
     brightness: u8,
 
     /// In simulation mode, no interaction with the hardware is done to simplify testability.
-    simulation: bool, 
+    simulation: bool,
 
     /// is the setup completed
     is_setup: bool,
 }
 
 impl APA102 {
-    
     /// Creates a APA102.
-    pub fn new() -> Result<APA102, Error>  {     
-
+    pub fn new() -> Result<APA102, Error> {
         Ok(Self {
             pin_dat: None,
             pin_clk: None,
             pin_cs: None,
-            pixels:[[0; 4]; NUM_PIXELS],
+            pixels: [[0; 4]; NUM_PIXELS],
             brightness: BRIGHTNESS,
             simulation: false,
             is_setup: false,
@@ -65,21 +63,20 @@ impl APA102 {
     }
 
     /// Initialize driver.
-    pub fn setup(&mut self) -> Result <(), Error> {
+    pub fn setup(&mut self) -> Result<(), Error> {
         if !self.is_setup {
-
             // Ignore Gpio initialization if in simulation mode
             if !self.simulation {
                 let gpio_dat = Gpio::new()?;
-                let output_dat = gpio_dat.get(GPIO_DAT)?.into_output(); 
+                let output_dat = gpio_dat.get(GPIO_DAT)?.into_output();
                 self.pin_dat = Some(Box::new(output_dat));
 
                 let gpio_clk = Gpio::new()?;
-                let output_clk = gpio_clk.get(GPIO_CLK)?.into_output(); 
+                let output_clk = gpio_clk.get(GPIO_CLK)?.into_output();
                 self.pin_clk = Some(Box::new(output_clk));
 
                 let gpio_cs = Gpio::new()?;
-                let output_cs = gpio_cs.get(GPIO_CS)?.into_output(); 
+                let output_cs = gpio_cs.get(GPIO_CS)?.into_output();
                 self.pin_cs = Some(Box::new(output_cs));
             }
 
@@ -89,42 +86,18 @@ impl APA102 {
     }
 
     /// Exit.
-    pub fn exit(&mut self) -> Result <(), Error> {
+    pub fn exit(&mut self) -> Result<(), Error> {
         self.clear();
-        self.show()?;
+        self.show().unwrap();
 
         Ok(())
-    }
-
-    /// Set the brightness of all pixels.
-    /// # Arguments
-    ///
-    /// * `brightness` - Brightness: 0.0 to 1.0.
-    pub fn set_brightness(&mut self, brightness : f32) {
-
-        assert!(brightness >= 0.0);
-        assert!(brightness <= 1.0);
-
-        for i in 0..self.pixels.len() {
-            self.pixels[i][3] = (31.0 * brightness.round()) as u8;
-        }
-    }
-
-    /// Clear the pixel buffer.
-    pub fn clear(&mut self) {
-        for i in 0..self.pixels.len() {
-            self.pixels[i][0] = 0 as u8; // R
-            self.pixels[i][1] = 0 as u8; // G
-            self.pixels[i][2] = 0 as u8; // B
-        }
     }
 
     /// Write a single byte to the DAT and CLK pins.
     /// # Arguments
     ///
     /// * `byte` - Bite to write.
-    fn write_byte (&mut self, byte : u8) {
-
+    fn write_byte(&mut self, byte: u8) {
         if !self.simulation {
             let output_dat = self.pin_dat.as_deref_mut().unwrap();
             let output_clk = self.pin_clk.as_deref_mut().unwrap();
@@ -146,8 +119,7 @@ impl APA102 {
 
     /// Ends writing data.
     fn eof(&mut self) {
-
-            if !self.simulation {
+        if !self.simulation {
             let output_dat = self.pin_dat.as_deref_mut().unwrap();
             let output_clk = self.pin_clk.as_deref_mut().unwrap();
 
@@ -164,7 +136,6 @@ impl APA102 {
 
     /// Starts writing data.
     fn sof(&mut self) {
-
         if !self.simulation {
             let output_dat = self.pin_dat.as_deref_mut().unwrap();
             let output_clk = self.pin_clk.as_deref_mut().unwrap();
@@ -180,9 +151,35 @@ impl APA102 {
         }
     }
 
-    /// Output the buffer.
-    pub fn show(&mut self) -> Result <(), Error>{
+    /// gets the bit at position `n`. Bits are numbered from 0 (least significant) to 31 (most significant).
+    /// # Arguments
+    ///
+    /// * `byte` - The byte to get the bit from.
+    /// * `n` - Bit position.
+    fn get_bit_at(byte: u8, n: u8) -> bool {
+        assert!(n < 8);
 
+        byte & (1 << n) != 0
+    }
+}
+
+impl LEDStrip for APA102 {
+    fn set_pixel(&mut self, x: usize, r: u8, g: u8, b: u8, brightness: f32) {
+        assert!(brightness >= 0.0);
+        assert!(brightness <= 1.0);
+        self.pixels[x][0] = r as u8; // R
+        self.pixels[x][1] = g as u8; // G
+        self.pixels[x][2] = b as u8; // B
+        self.pixels[x][3] = (31.0 * brightness.round()) as u8; // Brightness
+    }
+
+    fn set_all(&mut self, r: u8, g: u8, b: u8, brightness: f32) {
+        for i in 0..self.pixels.len() {
+            self.set_pixel(i, r, g, b, brightness);
+        }
+    }
+
+    fn show(&mut self) -> Result<(), String> {
         // Initialize if not done yet
         if !self.is_setup {
             let _result = self.setup();
@@ -210,53 +207,27 @@ impl APA102 {
         Ok(())
     }
 
-    /// Set the RGB value and optionally brightness of all pixels.
-    /// # Arguments
-    ///
-    /// * `r` - Amount of red: 0 to 255
-    /// * `g` - Amount of green: 0 to 255
-    /// * `b` - Amount of blue: 0 to 255
-    /// * `brightness` - Brightness: 0.0 to 1.0
-    pub fn set_all(&mut self, r : u8, g: u8, b: u8, brightness: f32) {
+    fn clear(&mut self) {
         for i in 0..self.pixels.len() {
-            self.set_pixel(i, r, g, b, brightness);
+            self.pixels[i][0] = 0 as u8; // R
+            self.pixels[i][1] = 0 as u8; // G
+            self.pixels[i][2] = 0 as u8; // B
         }
     }
 
-    /// Set the RGB value, and optionally brightness, of a single pixel.
-    /// # Arguments
-    ///
-    /// * `x` - The horizontal position of the pixel: 0 to 7
-    /// * `r` - Amount of red: 0 to 255
-    /// * `g` - Amount of green: 0 to 255
-    /// * `b` - Amount of blue: 0 to 255
-    /// * `brightness` - Brightness: 0.0 to 1.0
-    pub fn set_pixel(&mut self, x: usize, r : u8, g: u8, b: u8, brightness: f32) {
+    fn set_brightness(&mut self, brightness: f32) {
         assert!(brightness >= 0.0);
         assert!(brightness <= 1.0);
-        
-        self.pixels[x][0] = r as u8; // R
-        self.pixels[x][1] = g as u8; // G
-        self.pixels[x][2] = b as u8; // B
-        self.pixels[x][3] = (31.0 * brightness.round()) as u8; // Brightness
-    }
 
-    /// gets the bit at position `n`. Bits are numbered from 0 (least significant) to 31 (most significant).
-    /// # Arguments
-    ///
-    /// * `byte` - The byte to get the bit from.
-    /// * `n` - Bit position.
-    fn get_bit_at(byte: u8, n: u8) -> bool {
-        assert!(n < 8);
-
-        byte & (1 << n) != 0
+        for i in 0..self.pixels.len() {
+            self.pixels[i][3] = (31.0 * brightness.round()) as u8;
+        }
     }
 }
 
 /// Errors that can occur.
 #[derive(Debug)]
 pub enum Error {
-
     /// Gpio error.
     Gpio(rppal::gpio::Error),
 }
@@ -278,7 +249,6 @@ impl From<rppal::gpio::Error> for Error {
     }
 }
 
-
 /// Unit tests
 #[cfg(test)]
 mod tests {
@@ -287,10 +257,8 @@ mod tests {
     /// Tests the setup of the light.
     #[test]
     fn test_apa102_setup() -> Result<(), Error> {
-        
         let mut apa102 = APA102::new()?;
         apa102.simulation = true;
-        
         // Not setup
         assert!(apa102.is_setup == false);
 
@@ -305,7 +273,6 @@ mod tests {
     /// Tests the setup of the light.
     #[test]
     fn test_apa102_set_brightness() -> Result<(), Error> {
-        
         let mut apa102 = APA102::new()?;
         apa102.simulation = true;
         let _result = apa102.setup();
@@ -326,12 +293,11 @@ mod tests {
     /// Test clearing the buffer.
     #[test]
     fn test_apa102_clear() -> Result<(), Error> {
-        
         let mut apa102 = APA102::new()?;
         apa102.simulation = true;
         let _result = apa102.setup();
 
-        let brightness : u8 = 31;
+        let brightness: u8 = 31;
 
         for i in 0..apa102.pixels.len() {
             apa102.pixels[i][0] = 250 as u8; // R
@@ -356,7 +322,6 @@ mod tests {
     /// Tests to set pixel colors.
     #[test]
     fn test_apa102_set_pixel() -> Result<(), Error> {
-        
         let mut apa102 = APA102::new()?;
         apa102.simulation = true;
         let _result = apa102.setup();
@@ -376,10 +341,9 @@ mod tests {
         Ok(())
     }
 
-    /// Tests to set all 
+    /// Tests to set all
     #[test]
     fn test_apa102_set_all() -> Result<(), Error> {
-        
         let mut apa102 = APA102::new()?;
         apa102.simulation = true;
         let _result = apa102.setup();
@@ -399,7 +363,6 @@ mod tests {
     /// Tests obtaining a bit from a byte.
     #[test]
     fn test_apa102_get_bit_at() -> Result<(), Error> {
-        
         let value = 0b00010101 as u8;
 
         assert!(APA102::get_bit_at(value, 0) == true);

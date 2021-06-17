@@ -1,1 +1,1 @@
-# rust-raspi-led-strpi
+# rust-raspi-led-strip

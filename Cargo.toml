@@ -1,0 +1,9 @@
+[package]
+name = "rust-raspi-led-strpi"
+version = "0.1.0"
+authors = ["Sebastian Ziemann <sebastian.ziemann@zuehlke.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]

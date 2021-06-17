@@ -1,5 +1,5 @@
 [package]
-name = "rust-raspi-led-strip"
+name = "rust_raspi_led_strip"
 version = "0.1.0"
 authors = ["Sebastian Ziemann <sebastian.ziemann@zuehlke.com>"]
 edition = "2018"

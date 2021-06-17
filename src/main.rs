@@ -21,8 +21,9 @@ where
 }
 
 fn main() {
-    let led = APA102::new().unwrap();
-    let talking_led = TalkingLED::new().unwrap();
+    let led = APA102::new(50);
+    let talking_led = TalkingLED::new();
 
+    toggle_led(led);
     toggle_led(talking_led);
 }

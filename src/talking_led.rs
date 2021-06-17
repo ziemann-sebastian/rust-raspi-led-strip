@@ -3,8 +3,8 @@ use super::ledstrip::LEDStrip;
 pub struct TalkingLED {}
 
 impl TalkingLED {
-    pub fn new() -> Result<TalkingLED, String> {
-        Ok(Self {})
+    pub fn new() -> Self {
+        Self {}
     }
 }
 

@@ -4,6 +4,7 @@ use rppal::gpio::{Gpio, Level, OutputPin};
 use std::fmt;
 use std::thread;
 use std::time::Duration;
+use std::vec;
 
 /// GPIO BCM pin number for DAT.
 pub const GPIO_DAT: u8 = 10;
@@ -13,9 +14,6 @@ pub const GPIO_CLK: u8 = 11;
 
 /// GPIO BCM pin number for CS.
 pub const GPIO_CS: u8 = 8;
-
-/// Number of pixels.
-pub const NUM_PIXELS: usize = 64;
 
 /// Brightness.
 pub const BRIGHTNESS: u8 = 7;
@@ -35,8 +33,10 @@ pub struct APA102 {
     /// Output pin to write to GPIO. Optional as not used in simulated mode.
     pin_cs: Option<Box<OutputPin>>,
 
+    pixel_count: usize,
+
     /// pixels to be printed
-    pub pixels: [[u8; 4]; NUM_PIXELS],
+    pixels: Vec<[u8; 4]>,
 
     /// brightness between 0 and 15
     brightness: u8,
@@ -50,16 +50,17 @@ pub struct APA102 {
 
 impl APA102 {
     /// Creates a APA102.
-    pub fn new() -> Result<APA102, Error> {
-        Ok(Self {
+    pub fn new(pixel_count: usize) -> Self {
+        Self {
             pin_dat: None,
             pin_clk: None,
             pin_cs: None,
-            pixels: [[0; 4]; NUM_PIXELS],
+            pixel_count: pixel_count,
+            pixels: vec![[0; 4]; pixel_count],
             brightness: BRIGHTNESS,
             simulation: false,
             is_setup: false,
-        })
+        }
     }
 
     /// Initialize driver.
@@ -257,7 +258,7 @@ mod tests {
     /// Tests the setup of the light.
     #[test]
     fn test_apa102_setup() -> Result<(), Error> {
-        let mut apa102 = APA102::new()?;
+        let mut apa102 = APA102::new(8);
         apa102.simulation = true;
         // Not setup
         assert!(apa102.is_setup == false);
@@ -273,7 +274,7 @@ mod tests {
     /// Tests the setup of the light.
     #[test]
     fn test_apa102_set_brightness() -> Result<(), Error> {
-        let mut apa102 = APA102::new()?;
+        let mut apa102 = APA102::new(8);
         apa102.simulation = true;
         let _result = apa102.setup();
 
@@ -293,7 +294,7 @@ mod tests {
     /// Test clearing the buffer.
     #[test]
     fn test_apa102_clear() -> Result<(), Error> {
-        let mut apa102 = APA102::new()?;
+        let mut apa102 = APA102::new(8);
         apa102.simulation = true;
         let _result = apa102.setup();
 
@@ -322,7 +323,7 @@ mod tests {
     /// Tests to set pixel colors.
     #[test]
     fn test_apa102_set_pixel() -> Result<(), Error> {
-        let mut apa102 = APA102::new()?;
+        let mut apa102 = APA102::new(8);
         apa102.simulation = true;
         let _result = apa102.setup();
 
@@ -344,7 +345,7 @@ mod tests {
     /// Tests to set all
     #[test]
     fn test_apa102_set_all() -> Result<(), Error> {
-        let mut apa102 = APA102::new()?;
+        let mut apa102 = APA102::new(8);
         apa102.simulation = true;
         let _result = apa102.setup();
 
